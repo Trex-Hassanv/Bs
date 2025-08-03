@@ -52,6 +52,31 @@ app.get('/books', async (req, res) => {
   res.json({ page: pageNumber, cached: false, books });
 });
 
+// 🔍 API: /booksearch?q=alice
+app.get('/booksearch', async (req, res) => {
+  const query = req.query.q;
+  if (!query) return res.status(400).json({ error: 'Missing search query.' });
+
+  try {
+    const result = await axios.get(`https://gutendex.com/books/?search=${encodeURIComponent(query)}`);
+    const books = result.data.results.map((book, i) => {
+      const plainText = Object.entries(book.formats).find(([type]) => type.includes('text/plain'))?.[1];
+      return {
+        id: book.id,
+        index: i + 1,
+        title: book.title,
+        author: book.authors?.[0]?.name || 'Unknown',
+        text_url: plainText || null
+      };
+    }).filter(b => b.text_url);
+
+    res.json({ results: books });
+  } catch (err) {
+    console.error("booksearch error:", err.message);
+    res.status(500).json({ error: 'Failed to fetch book search.' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
